@@ -3,6 +3,7 @@ package properties
 import (
 	"bufio"
 	"fmt"
+	"io"
 	"strings"
 
 	"github.com/gookit/goutil/errorx"
@@ -50,27 +51,27 @@ func NewParser() *Parser {
 	}
 }
 
+// token consts
 const (
 	TokMLComments = 'C'
-	TokMLValMarkS = 'm' // single quotes: '''
-	TokMLValMarkD = 'M' // double quotes: """
+	TokMLValMarkS = 'm' // multi line value by single quotes: '''
+	TokMLValMarkD = 'M' // multi line value by double quotes: """
 )
 
-// Parse text
+// Parse text contents
 func (p *Parser) Parse(text string) error {
-	p.err = nil
+	return p.ParseReader(strings.NewReader(text))
+}
 
-	r := strings.NewReader(text)
+// ParseReader contents
+func (p *Parser) ParseReader(r io.Reader) error {
+	p.err = nil
 	s := bufio.NewScanner(r)
 
-	// v, V, C
-	// v - '''
-	// V - """
-	// C - /* at multi comments line
 	var tok rune
+	var line int
 	var key, val, comments string
 
-	var line int
 	for s.Scan() { // split by '\n'
 		line++
 
@@ -100,7 +101,7 @@ func (p *Parser) Parse(text string) error {
 				val += str[:ln-3]
 				p.smap[key] = val
 			} else {
-				val += str
+				val += str + "\n"
 			}
 			continue
 		}
@@ -177,6 +178,7 @@ func (p *Parser) Parse(text string) error {
 				continue
 			}
 
+			// clear quotes
 			if strings.HasPrefix(val, "'") {
 				if pos := strings.IndexRune(val[1:], '\''); pos > -1 {
 					val = val[1 : pos+1]

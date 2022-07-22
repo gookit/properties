@@ -14,7 +14,7 @@ Java `properties` contents parse, marshal and unmarshal library.
 - Support ENV var parse. format: `{$APP_ENV}`, `{$APP_ENV | default}`
 - Support value refer parse by var. format: `{$key_name}`
 
-> **[中文说明](README.zh-CN.md)**
+> **[EN README](README.md)**
 
 ## Install
 
