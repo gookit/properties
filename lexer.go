@@ -18,18 +18,6 @@ func lex(text string) *lexer {
 	}
 }
 
-type tokenItem struct {
-	kind rune
-	keys []string
-
-	key, val string
-	comment  string
-}
-
-func (ti *tokenItem) Valid() bool {
-	return ti.kind != 0
-}
-
 func (l *lexer) parse() error {
 	r := strings.NewReader(l.text)
 

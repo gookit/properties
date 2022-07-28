@@ -24,8 +24,7 @@ top.sub.key2-other = has-char
 # comments 2
 top.sub.key3 = false
 top.sub.key4[0] = abc # comments at end1
-top.sub.key4[1] = def /* comments at end2 */
-top.sub.key4[2] = def // comments at end3
+top.sub.key4[1] = def // comments at end2
 ## --- comments 3 ---
 top.sub.key5[0].f1 = ab
 top.sub.key5[1].f2 = de
@@ -59,7 +58,7 @@ key1 = val2
 	assert.NoErr(t, err)
 	smp := p.SMap()
 	assert.NotEmpty(t, smp)
-	assert.ContainsKeys(t, smp, []interface{}{"key0", "key1", "top.sub2.mline1"})
+	assert.ContainsKeys(t, smp, []string{"key0", "key1", "top.sub2.mline1"})
 	assert.Eq(t, "multi line\nvalue\n", smp.Str("top.sub2.mline1"))
 
 	// start and end mark at new line
@@ -120,7 +119,7 @@ key1 = val2
 	assert.NoErr(t, err)
 	smp := p.SMap()
 	assert.NotEmpty(t, smp)
-	assert.ContainsKeys(t, smp, []interface{}{"key0", "key1", "top.sub2.mline1"})
+	assert.ContainsKeys(t, smp, []string{"key0", "key1", "top.sub2.mline1"})
 	assert.Eq(t, "multi line\nvalue\n", smp.Str("top.sub2.mline1"))
 
 	// start and end mark at new line
