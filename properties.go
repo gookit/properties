@@ -4,7 +4,15 @@ func Marshal(v interface{}) ([]byte, error) {
 	return nil, nil
 }
 
+func Encode(v interface{}) ([]byte, error) {
+	return nil, nil
+}
+
 func Unmarshal(v []byte, ptr interface{}) error {
+	return nil
+}
+
+func Decode(v []byte, ptr interface{}) error {
 	return nil
 }
 

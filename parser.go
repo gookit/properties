@@ -2,11 +2,12 @@ package properties
 
 import (
 	"bufio"
+	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"strings"
 
-	"github.com/gookit/goutil/arrutil"
 	"github.com/gookit/goutil/errorx"
 	"github.com/gookit/goutil/maputil"
 	"github.com/gookit/goutil/strutil"
@@ -32,6 +33,8 @@ type tokenItem struct {
 	path string
 	keys []string
 
+	// token value
+	value string
 	// for multi line value.
 	values []string
 	// for multi line comments.
@@ -55,13 +58,18 @@ func (ti *tokenItem) Valid() bool {
 // Options for config
 type Options struct {
 	// ParseEnv parse ENV var name, default True. eg: "${SHELL}"
-	ParseEnv      bool
-	ParseVar      bool
-	InlineComment bool
-	// TrimMultiLine trim multi line value
-	TrimMultiLine bool
+	ParseEnv bool
+	// ParseVar reference. eg: "${some.name}"
+	ParseVar bool
 	// TagName for binding data to struct
 	TagName string
+
+	// InlineComment bool
+
+	// TrimMultiLine trim multi line value
+	TrimMultiLine bool
+	// BeforeCollect value handle func.
+	BeforeCollect func(name, value string) (val interface{}, ok bool)
 }
 
 // Parser for parse properties contents
@@ -71,6 +79,7 @@ type Parser struct {
 	lex *lexer
 	// text string
 	opts *Options
+	// key path map
 	smap maputil.SMap
 	// comments map
 	comments map[string]string
@@ -87,12 +96,27 @@ func NewParser() *Parser {
 }
 
 // Parse text contents
-func (p *Parser) Parse(text string) error {
-	return p.ParseReader(strings.NewReader(text))
+func Parse(text string) (*Parser, error) {
+	p := NewParser()
+	return p, p.Parse(text)
 }
 
-// ParseReader contents
-func (p *Parser) ParseReader(r io.Reader) error {
+// Parse text contents
+func (p *Parser) Parse(text string) error {
+	if text = strings.TrimSpace(text); text == "" {
+		return errors.New("cannot input empty string to parse")
+	}
+
+	return p.ParseFrom(strings.NewReader(text))
+}
+
+// ParseBytes text contents
+func (p *Parser) ParseBytes(bs []byte) error {
+	return p.ParseFrom(bytes.NewReader(bs))
+}
+
+// ParseFrom contents
+func (p *Parser) ParseFrom(r io.Reader) error {
 	p.err = nil
 	s := bufio.NewScanner(r)
 
@@ -126,8 +150,7 @@ func (p *Parser) ParseReader(r io.Reader) error {
 
 		// multi line value
 		if tok == TokMLValMarkS {
-			// end
-			if strings.HasSuffix(str, MultiLineValMarkS) {
+			if strings.HasSuffix(str, MultiLineValMarkS) { // end
 				tok = 0
 				val += str[:ln-3]
 				p.smap[key] = val
@@ -139,8 +162,7 @@ func (p *Parser) ParseReader(r io.Reader) error {
 
 		// multi line value
 		if tok == TokMLValMarkD {
-			// end
-			if strings.HasSuffix(str, MultiLineValMarkD) {
+			if strings.HasSuffix(str, MultiLineValMarkD) { // end
 				tok = 0
 				val += str[:ln-3]
 				p.smap[key] = val
@@ -260,34 +282,13 @@ func (p *Parser) setValue(ti tokenItem) error {
 	if len(ti.keys) == 1 {
 		p.Data[ti.path] = valueString
 	} else {
-		// mp = buildValueByPath(ti.keys, value)
-		_, err := maputil.SetByKeys(p.Data, ti.keys, valueString)
+		err := maputil.SetByKeys2((*map[string]any)(&p.Data), ti.keys, valueString)
 		if err != nil {
 			return err
 		}
 	}
 
 	return p.err
-}
-
-// build new value by key paths
-// "site.info" -> map[string]map[string]val
-func buildValueByPath(paths []string, val interface{}) (newItem map[string]interface{}) {
-	if len(paths) == 1 {
-		return map[string]interface{}{paths[0]: val}
-	}
-
-	arrutil.Reverse(paths)
-
-	// multi nodes
-	for _, p := range paths {
-		if newItem == nil {
-			newItem = map[string]interface{}{p: val}
-		} else {
-			newItem = map[string]interface{}{p: newItem}
-		}
-	}
-	return
 }
 
 func splitInlineComment(val string) (string, string) {
