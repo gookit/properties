@@ -6,11 +6,15 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"reflect"
 	"strings"
+	"time"
 
+	"github.com/gookit/goutil/envutil"
 	"github.com/gookit/goutil/errorx"
 	"github.com/gookit/goutil/maputil"
 	"github.com/gookit/goutil/strutil"
+	"github.com/mitchellh/mapstructure"
 )
 
 // special chars consts
@@ -41,9 +45,14 @@ type tokenItem struct {
 	comments []string
 }
 
+func newTokenItem(path, value string) *tokenItem {
+	tk := &tokenItem{value: value}
+	return tk
+}
+
 func (ti *tokenItem) setPath(path string) {
-	ti.path = path
 	// TODO check path valid
+	ti.path = path
 
 	if strings.ContainsRune(path, '.') {
 		ti.keys = strings.Split(path, ".")
@@ -55,26 +64,10 @@ func (ti *tokenItem) Valid() bool {
 	return ti.kind != 0
 }
 
-// Options for config
-type Options struct {
-	// ParseEnv parse ENV var name, default True. eg: "${SHELL}"
-	ParseEnv bool
-	// ParseVar reference. eg: "${some.name}"
-	ParseVar bool
-	// TagName for binding data to struct
-	TagName string
-
-	// InlineComment bool
-
-	// TrimMultiLine trim multi line value
-	TrimMultiLine bool
-	// BeforeCollect value handle func.
-	BeforeCollect func(name, value string) (val interface{}, ok bool)
-}
-
 // Parser for parse properties contents
 type Parser struct {
 	maputil.Data
+	// last parse error
 	err error
 	lex *lexer
 	// text string
@@ -86,19 +79,24 @@ type Parser struct {
 }
 
 // NewParser instance
-func NewParser() *Parser {
-	return &Parser{
+func NewParser(optFns ...OpFunc) *Parser {
+	p := &Parser{
+		opts: newDefaultOption(),
 		smap: make(maputil.SMap),
 		Data: make(maputil.Data),
 		// comments map
 		comments: make(map[string]string),
 	}
+
+	return p.WithOptions(optFns...)
 }
 
-// Parse text contents
-func Parse(text string) (*Parser, error) {
-	p := NewParser()
-	return p, p.Parse(text)
+// WithOptions for the parser
+func (p *Parser) WithOptions(optFns ...OpFunc) *Parser {
+	for _, fn := range optFns {
+		fn(p.opts)
+	}
+	return p
 }
 
 // Parse text contents
@@ -128,6 +126,10 @@ func (p *Parser) ParseFrom(r io.Reader) error {
 	// var ti tokenItem
 
 	for s.Scan() { // split by '\n'
+		if p.err != nil {
+			break
+		}
+
 		line++
 
 		raw := s.Text()
@@ -153,7 +155,8 @@ func (p *Parser) ParseFrom(r io.Reader) error {
 			if strings.HasSuffix(str, MultiLineValMarkS) { // end
 				tok = 0
 				val += str[:ln-3]
-				p.smap[key] = val
+				// p.smap[key] = val
+				p.setValue(key, val, "")
 			} else {
 				val += str + "\n"
 			}
@@ -165,7 +168,8 @@ func (p *Parser) ParseFrom(r io.Reader) error {
 			if strings.HasSuffix(str, MultiLineValMarkD) { // end
 				tok = 0
 				val += str[:ln-3]
-				p.smap[key] = val
+				// p.smap[key] = val
+				p.setValue(key, val, "")
 			} else {
 				val += str + "\n"
 			}
@@ -243,7 +247,7 @@ func (p *Parser) ParseFrom(r io.Reader) error {
 			} else {
 				// split inline comments
 				var comment string
-				val, comment = splitInlineComment(val)
+				val, comment = p.splitInlineComment(val)
 				if len(comment) > 0 {
 					if len(comments) > 0 {
 						comments += "\n" + comment
@@ -259,14 +263,44 @@ func (p *Parser) ParseFrom(r io.Reader) error {
 			comments = "" // reset
 		}
 
-		p.smap[key] = val
+		// p.smap[key] = val
+		p.setValue(key, val, "")
 	}
 
-	return nil
+	return p.err
 }
 
-// Err last error
-func (p *Parser) setValue(ti tokenItem) error {
+// collect set value
+func (p *Parser) setValue(key, value, comments string) error {
+	if len(comments) > 0 {
+		p.comments[key] = comments
+	}
+
+	p.smap[key] = value
+
+	var keys []string
+	if strings.ContainsRune(key, '.') {
+		keys = strings.Split(key, ".")
+	} else {
+		keys = []string{key}
+	}
+
+	// set value by keys
+	if len(keys) == 1 {
+		p.Data[key] = value
+	} else {
+		// err := p.Data.SetByPath(keys, value)
+		err := maputil.SetByKeys((*map[string]any)(&p.Data), keys, value)
+		if err != nil {
+			p.err = err
+		}
+	}
+
+	return p.err
+}
+
+// collect set value
+func (p *Parser) setValueByItem(ti tokenItem) error {
 	if !ti.Valid() {
 		return nil
 	}
@@ -282,16 +316,68 @@ func (p *Parser) setValue(ti tokenItem) error {
 	if len(ti.keys) == 1 {
 		p.Data[ti.path] = valueString
 	} else {
-		err := maputil.SetByKeys2((*map[string]any)(&p.Data), ti.keys, valueString)
+		// err := p.Data.SetByPath(ti.keys, valueString)
+		err := maputil.SetByKeys((*map[string]any)(&p.Data), ti.keys, valueString)
 		if err != nil {
-			return err
+			p.err = err
 		}
 	}
 
 	return p.err
 }
 
-func splitInlineComment(val string) (string, string) {
+// ErrNotFound error
+var ErrNotFound = errors.New("this key does not exists")
+
+// MapStruct mapping data to a struct ptr
+func (p *Parser) MapStruct(key string, ptr interface{}) error {
+	var data interface{}
+	if key == "" { // binding all data
+		data = p.Data
+	} else { // sub data of the p.Data
+		var ok bool
+		data, ok = p.Value(key)
+		if !ok {
+			return ErrNotFound
+		}
+	}
+
+	bindConf := p.opts.MapStructConfig
+	// compatible with settings on opts.TagName
+	if bindConf.TagName == "" {
+		bindConf.TagName = p.opts.TagName
+	}
+
+	// add hook on decode value to struct
+	if p.opts.shouldAddHookFunc() {
+		bindConf.DecodeHook = ValDecodeHookFunc(p.opts.ParseEnv, p.opts.ParseTime)
+	}
+
+	bindConf.Result = ptr // set result struct ptr
+	decoder, err := mapstructure.NewDecoder(&bindConf)
+
+	if err == nil {
+		err = decoder.Decode(data)
+	}
+	return err
+}
+
+// Err last parse error
+func (p *Parser) Err() error {
+	return p.err
+}
+
+// SMap data
+func (p *Parser) SMap() maputil.SMap {
+	return p.smap
+}
+
+// Comments data
+func (p *Parser) Comments() map[string]string {
+	return p.comments
+}
+
+func (p *Parser) splitInlineComment(val string) (string, string) {
 	if pos := strings.IndexRune(val, '#'); pos > -1 {
 		return strings.TrimRight(val[0:pos], " "), val[pos:]
 	}
@@ -306,17 +392,31 @@ func splitInlineComment(val string) (string, string) {
 	return val, ""
 }
 
-// Err last error
-func (p *Parser) Err() error {
-	return p.err
-}
+// ValDecodeHookFunc returns a mapstructure.DecodeHookFunc that parse ENV var, and more custom parse
+func ValDecodeHookFunc(parseEnv, parseTime bool) mapstructure.DecodeHookFunc {
+	return func(f reflect.Type, t reflect.Type, data interface{}) (interface{}, error) {
+		if f.Kind() != reflect.String {
+			return data, nil
+		}
 
-// SMap data
-func (p *Parser) SMap() maputil.SMap {
-	return p.smap
-}
+		str := data.(string)
+		if len(str) < 2 {
+			return str, nil
+		}
 
-// Comments data
-func (p *Parser) Comments() map[string]string {
-	return p.comments
+		// start char is number(1-9)
+		if str[0] > '0' && str[0] < '9' {
+			// parse time string. eg: 10s
+			if parseTime && t.Kind() == reflect.Int64 {
+				dur, err := time.ParseDuration(str)
+				if err == nil {
+					return dur, nil
+				}
+			}
+		} else if parseEnv { // parse ENV value
+			str = envutil.ParseEnvValue(str)
+		}
+
+		return str, nil
+	}
 }

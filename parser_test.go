@@ -16,15 +16,21 @@ top.sub.key0 = a string value
 top.sub.key1 = "a string value"
 /* comments 1.1 */
 top.sub.key2 = 234
+
+# inline list
+top2.inline.list.ids = [234, 345, 456]
+
 /*
 multi line
 comments
 */
 top.sub.key2-other = has-char
+
 # comments 2
 top.sub.key3 = false
 top.sub.key4[0] = abc # comments at end1
 top.sub.key4[1] = def // comments at end2
+
 ## --- comments 3 ---
 top.sub.key5[0].f1 = ab
 top.sub.key5[1].f2 = de
@@ -37,6 +43,7 @@ value
 	p := properties.NewParser()
 	err := p.Parse(text)
 	assert.NoErr(t, err)
+	dump.NoLoc(p.Data)
 
 	fmt.Println("string map:")
 	dump.NoLoc(p.SMap())
