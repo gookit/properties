@@ -12,7 +12,7 @@ type OpFunc func(opts *Options)
 type Options struct {
 	// ParseEnv parse ENV var name, default True. eg: "${SHELL}"
 	ParseEnv bool
-	// ParseVar reference. eg: "${some.name}"
+	// ParseVar reference. eg: "${other.var.name}"
 	ParseVar bool
 	// ParseTime string on binding struct. eg: 3s -> 3*time.Second
 	ParseTime bool
@@ -22,9 +22,11 @@ type Options struct {
 	// MapStructConfig for binding data to struct.
 	MapStructConfig mapstructure.DecoderConfig
 
-	// InlineComment support split inline comments
+	// InlineComment support split inline comments. default: false
+	//
+	// allow chars: #, //
 	InlineComment bool
-	// TrimMultiLine trim multi line value
+	// TrimMultiLine trim "\n" for multi line value. default: false
 	TrimMultiLine bool
 	// BeforeCollect value handle func.
 	BeforeCollect func(name, value string) (val interface{}, ok bool)

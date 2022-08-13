@@ -8,6 +8,7 @@ import (
 	"github.com/gookit/goutil/errorx"
 )
 
+// TODO ... use lexer
 type lexer struct {
 	text string
 }
