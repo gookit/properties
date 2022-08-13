@@ -1,36 +1,28 @@
+// Package properties provide Java Properties format contents parse, marshal and unmarshal library.
 package properties
 
-import (
-	"bytes"
-
-	"github.com/gookit/goutil/errorx"
-	"github.com/gookit/goutil/strutil"
-)
-
-// Parse text contents
+// Parse properties text contents
 func Parse(text string) (*Parser, error) {
 	p := NewParser()
 	return p, p.Parse(text)
 }
 
+// Marshal data(struct, map) to properties text
 func Marshal(v interface{}) ([]byte, error) {
-	return Encode(v)
+	return NewEncoder().Encode(v)
 }
 
+// Unmarshal parse properties text and decode to struct
 func Unmarshal(v []byte, ptr interface{}) error {
 	return Decode(v, ptr)
 }
 
+// Encode data(struct, map) to properties text
 func Encode(v interface{}) ([]byte, error) {
-	mp, ok := v.(map[string]interface{})
-	if !ok {
-		return nil, errorx.Raw("only support encode map[string]any to Properties")
-	}
-
-	return encode(mp)
+	return NewEncoder().Encode(v)
 }
 
-// Decode input string to struct ptr
+// Decode parse properties text and decode to struct
 func Decode(v []byte, ptr interface{}) error {
 	p := NewParser()
 	if err := p.ParseBytes(v); err != nil {
@@ -38,20 +30,4 @@ func Decode(v []byte, ptr interface{}) error {
 	}
 
 	return p.MapStruct("", ptr)
-}
-
-func encode(mp map[string]interface{}) ([]byte, error) {
-	var path string
-	var buf bytes.Buffer
-
-	// TODO...
-	for name, val := range mp {
-		path = name
-		buf.WriteString(path)
-		buf.WriteByte('=')
-		buf.WriteString(strutil.QuietString(val))
-		buf.WriteByte('\n')
-	}
-
-	return buf.Bytes(), nil
 }
