@@ -6,11 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"reflect"
 	"strings"
-	"time"
 
-	"github.com/gookit/goutil/envutil"
 	"github.com/gookit/goutil/errorx"
 	"github.com/gookit/goutil/maputil"
 	"github.com/gookit/goutil/strutil"
@@ -22,16 +19,19 @@ const (
 	MultiLineValMarkS = "'''"
 	MultiLineValMarkD = `"""`
 	MultiLineCmtEnd   = "*/"
+	VarRefStartChars  = "${"
 )
 
 // token consts
 const (
 	TokMLComments = 'C'
+	TokInlineVal  = 'v'
 	TokMLValMarkS = 'm' // multi line value by single quotes: '''
 	TokMLValMarkD = 'M' // multi line value by double quotes: """
 )
 
 type tokenItem struct {
+	// see TokInlineVal
 	kind rune
 	// key path string. eg: top.sub.some-key
 	path string
@@ -45,8 +45,13 @@ type tokenItem struct {
 	comments []string
 }
 
-func newTokenItem(path, value string) *tokenItem {
-	tk := &tokenItem{value: value}
+func newTokenItem(path, value string, kind rune) *tokenItem {
+	tk := &tokenItem{
+		kind:  kind,
+		value: value,
+	}
+
+	tk.setPath(path)
 	return tk
 }
 
@@ -57,6 +62,11 @@ func (ti *tokenItem) setPath(path string) {
 	if strings.ContainsRune(path, '.') {
 		ti.keys = strings.Split(path, ".")
 	}
+}
+
+// Valid of the token data.
+func (ti *tokenItem) addValue(val string) {
+	ti.values = append(ti.values, val)
 }
 
 // Valid of the token data.
@@ -104,7 +114,6 @@ func (p *Parser) Parse(text string) error {
 	if text = strings.TrimSpace(text); text == "" {
 		return errors.New("cannot input empty string to parse")
 	}
-
 	return p.ParseFrom(strings.NewReader(text))
 }
 
@@ -271,9 +280,16 @@ func (p *Parser) ParseFrom(r io.Reader) error {
 }
 
 // collect set value
-func (p *Parser) setValue(key, value, comments string) error {
+func (p *Parser) setValue(key, value, comments string) {
 	if len(comments) > 0 {
 		p.comments[key] = comments
+	}
+
+	if p.opts.ParseVar {
+		refName, ok := parseVarRefName(value)
+		if ok {
+			value = p.smap.Default(refName, value)
+		}
 	}
 
 	p.smap[key] = value
@@ -289,20 +305,18 @@ func (p *Parser) setValue(key, value, comments string) error {
 	if len(keys) == 1 {
 		p.Data[key] = value
 	} else {
-		// err := p.Data.SetByPath(keys, value)
-		err := maputil.SetByKeys((*map[string]any)(&p.Data), keys, value)
+		err := p.Data.SetByKeys(keys, value)
+		// err := maputil.SetByKeys((*map[string]any)(&p.Data), keys, value)
 		if err != nil {
 			p.err = err
 		}
 	}
-
-	return p.err
 }
 
 // collect set value
-func (p *Parser) setValueByItem(ti tokenItem) error {
+func (p *Parser) setValueByItem(ti tokenItem) {
 	if !ti.Valid() {
-		return nil
+		return
 	}
 
 	if len(ti.comments) > 0 {
@@ -316,14 +330,11 @@ func (p *Parser) setValueByItem(ti tokenItem) error {
 	if len(ti.keys) == 1 {
 		p.Data[ti.path] = valueString
 	} else {
-		// err := p.Data.SetByPath(ti.keys, valueString)
-		err := maputil.SetByKeys((*map[string]any)(&p.Data), ti.keys, valueString)
+		err := p.Data.SetByKeys(ti.keys, valueString)
 		if err != nil {
 			p.err = err
 		}
 	}
-
-	return p.err
 }
 
 // ErrNotFound error
@@ -378,6 +389,10 @@ func (p *Parser) Comments() map[string]string {
 }
 
 func (p *Parser) splitInlineComment(val string) (string, string) {
+	if !p.opts.InlineComment {
+		return val, ""
+	}
+
 	if pos := strings.IndexRune(val, '#'); pos > -1 {
 		return strings.TrimRight(val[0:pos], " "), val[pos:]
 	}
@@ -386,37 +401,5 @@ func (p *Parser) splitInlineComment(val string) (string, string) {
 		return strings.TrimRight(val[0:pos], " "), val[pos:]
 	}
 
-	// if pos := strings.Index(val, "/*"); pos > -1 {
-	// 	return val[0:pos], val[pos:]
-	// }
 	return val, ""
-}
-
-// ValDecodeHookFunc returns a mapstructure.DecodeHookFunc that parse ENV var, and more custom parse
-func ValDecodeHookFunc(parseEnv, parseTime bool) mapstructure.DecodeHookFunc {
-	return func(f reflect.Type, t reflect.Type, data interface{}) (interface{}, error) {
-		if f.Kind() != reflect.String {
-			return data, nil
-		}
-
-		str := data.(string)
-		if len(str) < 2 {
-			return str, nil
-		}
-
-		// start char is number(1-9)
-		if str[0] > '0' && str[0] < '9' {
-			// parse time string. eg: 10s
-			if parseTime && t.Kind() == reflect.Int64 {
-				dur, err := time.ParseDuration(str)
-				if err == nil {
-					return dur, nil
-				}
-			}
-		} else if parseEnv { // parse ENV value
-			str = envutil.ParseEnvValue(str)
-		}
-
-		return str, nil
-	}
 }
