@@ -8,6 +8,7 @@ import (
 	"io"
 	"strings"
 
+	"github.com/gookit/goutil/envutil"
 	"github.com/gookit/goutil/errorx"
 	"github.com/gookit/goutil/maputil"
 	"github.com/gookit/goutil/strutil"
@@ -284,7 +285,9 @@ func (p *Parser) ParseFrom(r io.Reader) error {
 			continue
 		}
 
-		fmt.Printf("split: %s = %s, tok=%d(%s)\n", key, val, tok, TokString(tok))
+		if p.opts.Debug {
+			fmt.Printf("value line: %s = %s, tok=%d(%s)\n", key, val, tok, TokString(tok))
+		}
 
 		vln := len(val)
 		// multi line value ended by \
@@ -312,7 +315,7 @@ func (p *Parser) ParseFrom(r io.Reader) error {
 			} else if p.opts.InlineComment {
 				// split inline comments
 				var comment string
-				val, comment = p.splitInlineComment(val)
+				val, comment = splitInlineComment(val)
 				if len(comment) > 0 {
 					if len(comments) > 0 {
 						comments += "\n" + comment
@@ -340,14 +343,32 @@ func (p *Parser) setValue(key, value, comments string) {
 		p.comments[key] = comments
 	}
 
-	if p.opts.ParseVar {
+	ln := len(value)
+	if p.opts.TrimValue && ln > 0 {
+		value = strings.TrimSpace(value)
+	}
+
+	if p.opts.ParseVar && ln > 3 {
 		refName, ok := parseVarRefName(value)
 		if ok {
 			value = p.smap.Default(refName, value)
 		}
 	}
 
+	var setVal interface{}
+	setVal = value
 	p.smap[key] = value
+
+	if p.opts.ParseEnv && ln > 3 {
+		setVal = envutil.ParseEnvValue(value)
+	}
+
+	if p.opts.InlineSlice && ln > 2 {
+		ss, ok := parseInlineSlice(value, ln)
+		if ok {
+			setVal = ss
+		}
+	}
 
 	var keys []string
 	if strings.ContainsRune(key, '.') {
@@ -356,14 +377,17 @@ func (p *Parser) setValue(key, value, comments string) {
 		keys = []string{key}
 	}
 
+	if p.opts.BeforeCollect != nil {
+		setVal = p.opts.BeforeCollect(key, setVal)
+	}
+
 	// set value by keys
 	if len(keys) == 1 {
-		p.Data[key] = value
+		p.Data[key] = setVal
 	} else if len(p.Data) == 0 {
-		p.Data = maputil.MakeByKeys(keys, value)
+		p.Data = maputil.MakeByKeys(keys, setVal)
 	} else {
-		err := p.Data.SetByKeys(keys, value)
-		// err := maputil.SetByKeys((*map[string]any)(&p.Data), keys, value)
+		err := p.Data.SetByKeys(keys, setVal)
 		if err != nil {
 			p.err = err
 		}
@@ -433,16 +457,4 @@ func (p *Parser) SMap() maputil.SMap {
 // Comments data
 func (p *Parser) Comments() map[string]string {
 	return p.comments
-}
-
-func (p *Parser) splitInlineComment(val string) (string, string) {
-	if pos := strings.IndexRune(val, '#'); pos > -1 {
-		return strings.TrimRight(val[0:pos], " "), val[pos:]
-	}
-
-	if pos := strings.Index(val, "//"); pos > -1 {
-		return strings.TrimRight(val[0:pos], " "), val[pos:]
-	}
-
-	return val, ""
 }

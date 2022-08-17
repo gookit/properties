@@ -13,6 +13,8 @@ func TestParser_Parse(t *testing.T) {
 	text := `
 name = inhere
 age = 345
+only-key = 
+env-key = ${SHELL | bash}
 
  ##### comments1
 top.sub.key0 = a string value
@@ -53,7 +55,11 @@ multi line2 \
 value
 `
 
-	p := properties.NewParser()
+	p := properties.NewParser(
+		properties.WithDebug,
+		properties.ParseEnv,
+		properties.ParseInlineSlice,
+	)
 	err := p.Parse(text)
 	assert.NoErr(t, err)
 	fmt.Println("\ndata map:")
@@ -64,13 +70,18 @@ value
 
 	fmt.Println("\ncomments:")
 	dump.NoLoc(p.Comments())
+
+	assert.Eq(t, 345, p.Int("age"))
+	assert.Eq(t, "inhere", p.Str("name"))
+	assert.Eq(t, "a quote value1", p.Str("top.sub.key1"))
+	assert.Eq(t, []string{"234", "345", "456"}, p.Strings("top2.inline.list.ids"))
+	assert.Eq(t, "[234, 345, 456]", p.SMap().Get("top2.inline.list.ids"))
 }
 
 func TestParser_WithOptions_parseVar(t *testing.T) {
 	text := `key0 = val1
 top.sub.key0 = a string value
 top2.sub.var-refer = ${top.sub.key0}
-
 `
 
 	p := properties.NewParser()
