@@ -65,6 +65,21 @@ value
 	dump.NoLoc(p.Comments())
 }
 
+func TestParser_WithOptions_parseVar(t *testing.T) {
+	text := `key0 = val1
+top.sub.key0 = a string value
+top2.sub.var-refer = ${top.sub.key0}
+
+`
+
+	p := properties.NewParser()
+	err := p.Parse(text)
+
+	assert.NoErr(t, err)
+	smp := p.SMap()
+	dump.P(smp)
+}
+
 func TestParser_Parse_multiLineValS(t *testing.T) {
 	text := `key0 = val1
 top.sub2.mline1 = '''multi line

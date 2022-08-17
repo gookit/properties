@@ -18,7 +18,7 @@ func parseVarRefName(val string) (string, bool) {
 		return "", false
 	}
 
-	refName := val[3 : len(val)-2]
+	refName := val[2 : len(val)-1]
 	if refRegex.MatchString(refName) {
 		return refName, true
 	}
