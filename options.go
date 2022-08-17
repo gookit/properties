@@ -10,6 +10,8 @@ type OpFunc func(opts *Options)
 
 // Options for config
 type Options struct {
+	// Debug open debug mode
+	Debug bool
 	// ParseEnv parse ENV var name, default True. eg: "${SHELL}"
 	ParseEnv bool
 	// ParseVar reference. eg: "${other.var.name}". default: true
@@ -18,9 +20,8 @@ type Options struct {
 	ParseTime bool
 	// TagName for binding data to struct. default: properties
 	TagName string
-
-	// MapStructConfig for binding data to struct.
-	MapStructConfig mapstructure.DecoderConfig
+	// TrimValue trim "\n" for value string. default: false
+	TrimValue bool
 
 	// InlineComment support split inline comments. default: false
 	//
@@ -28,17 +29,10 @@ type Options struct {
 	InlineComment bool
 	// InlineSlice support parse the inline slice. eg: [23, 34]. default: false
 	InlineSlice bool
-	// TrimMultiLine trim "\n" for multi line value. default: false
-	TrimMultiLine bool
-	// BeforeCollect value handle func.
-	BeforeCollect func(name, value string) (val interface{}, ok bool)
-}
-
-func (opts *Options) shouldAddHookFunc() bool {
-	if opts.MapStructConfig.DecodeHook == nil {
-		return opts.ParseTime || opts.ParseEnv
-	}
-	return false
+	// MapStructConfig for binding data to struct.
+	MapStructConfig mapstructure.DecoderConfig
+	// BeforeCollect value handle func, you can return a new value.
+	BeforeCollect func(name string, val interface{}) interface{}
 }
 
 func (opts *Options) makeDecoderConfig() *mapstructure.DecoderConfig {
@@ -48,9 +42,9 @@ func (opts *Options) makeDecoderConfig() *mapstructure.DecoderConfig {
 		decConf.TagName = opts.TagName
 	}
 
-	// add hook on decode value to struct
-	if opts.shouldAddHookFunc() {
-		decConf.DecodeHook = ValDecodeHookFunc(opts.ParseEnv, opts.ParseTime)
+	// parse time string on binding to struct
+	if opts.ParseTime || decConf.DecodeHook == nil {
+		decConf.DecodeHook = ValDecodeHookFunc()
 	}
 
 	return &decConf
@@ -67,6 +61,26 @@ func newDefaultOption() *Options {
 			WeaklyTypedInput: true,
 		},
 	}
+}
+
+// WithDebug open debug mode
+func WithDebug(opts *Options) {
+	opts.Debug = true
+}
+
+// ParseEnv open parse ENV var string.
+func ParseEnv(opts *Options) {
+	opts.ParseEnv = true
+}
+
+// ParseTime open parse time string.
+func ParseTime(opts *Options) {
+	opts.ParseTime = true
+}
+
+// ParseInlineSlice open parse inline slice
+func ParseInlineSlice(opts *Options) {
+	opts.InlineSlice = true
 }
 
 // WithTagName custom tag name on binding struct
