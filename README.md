@@ -10,10 +10,12 @@
 
 - Generic properties contents parser, marshal and unmarshal
 - Support `Marshal` and `Unmarshal` like `json` package
-- Support comments start withs `!`, `#`, `//`, `/* multi line comments */`
-- Support multi line string value, withs `\\`, `'''multi line string''''`, `"""multi line string"""`
+- Support comments start withs `!`, `#`
+  - enhanced: allow `//`, `/* multi line comments */`
+- Support multi line string value, withs `\\`
+  - enhanced: allow `'''multi line string''''`, `"""multi line string"""`
 - Support value refer parse by var. format: `${some.other.key}`
-- Support ENV var parse. format: `{$APP_ENV}`, `{$APP_ENV | default}`
+- Support ENV var parse. format: `${APP_ENV}`, `${APP_ENV | default}`
 
 > **[中文说明](README.zh-CN.md)**
 
@@ -26,6 +28,41 @@ go get github.com/gookit/properties
 ## Usage
 
 ```go
-// ...
+package main
+
+import (
+	"fmt"
+
+	"github.com/gookit/properties"
+)
+
+func Example() {
+	text := `
+# properties string
+name = inhere
+age = 200
+`
+
+	p, err := properties.Parse(text)
+	if err != nil {
+		panic(err)
+	}
+
+	type MyConf struct {
+		Name string `properties:"name"`
+		Age  int    `properties:"age"`
+	}
+
+	cfg := &MyConf{}
+	err = p.MapStruct("", cfg)
+	if err != nil {
+		panic(err)
+	}
+
+	fmt.Println(*cfg)
+
+	// Output:
+	// {inhere 200}
+}
 ```
 

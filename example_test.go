@@ -2,6 +2,7 @@ package properties_test
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/gookit/properties"
 )
@@ -9,7 +10,8 @@ import (
 func Example() {
 	text := `
 # properties string
-key = value
+name = inhere
+age = 200
 `
 
 	p, err := properties.Parse(text)
@@ -18,7 +20,8 @@ key = value
 	}
 
 	type MyConf struct {
-		// ...
+		Name string `properties:"name"`
+		Age  int    `properties:"age"`
 	}
 
 	cfg := &MyConf{}
@@ -26,6 +29,11 @@ key = value
 	if err != nil {
 		panic(err)
 	}
+
+	fmt.Println(*cfg)
+
+	// Output:
+	// {inhere 200}
 }
 
 func ExampleMarshal() {
@@ -47,8 +55,8 @@ func ExampleMarshal() {
 	fmt.Println(string(bts))
 
 	// Output:
-	// name = inhere
-	// age = 200
+	// name=inhere
+	// age=300
 }
 
 func ExampleUnmarshal() {
@@ -59,14 +67,29 @@ age = 200
 
 project.name = properties
 project.version = v1.0.1
+# parse time string
+project.cache-time = 10s
 
 project.repo.name = ${project.name}
 project.repo.url = https://github.com/gookit/properties
 `
 
-	type MyConf struct {
+	type Repo struct {
 		Name string `properties:"name"`
-		Age  int    `properties:"age"`
+		URL  string `properties:"url"`
+	}
+
+	type Project struct {
+		Name      string        `properties:"name"`
+		Version   string        `properties:"version"`
+		CacheTime time.Duration `properties:"cache-time"`
+		Repo      Repo          `properties:"repo"`
+	}
+
+	type MyConf struct {
+		Name    string  `properties:"name"`
+		Age     int     `properties:"age"`
+		Project Project `properties:"project"`
 	}
 
 	cfg := &MyConf{}
@@ -75,8 +98,8 @@ project.repo.url = https://github.com/gookit/properties
 		panic(err)
 	}
 
-	fmt.Println(cfg.Name)
+	fmt.Println(*cfg)
 
 	// Output:
-	// inhere
+	// {inhere 200 {properties v1.0.1 10s {properties https://github.com/gookit/properties}}}
 }
