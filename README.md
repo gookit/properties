@@ -8,12 +8,12 @@
 
 `properties` - Java Properties format contents parse, marshal and unmarshal library.
 
-- Generic properties contents parser
+- Generic properties contents parser, marshal and unmarshal
 - Support `Marshal` and `Unmarshal` like `json` package
-- Support comments withs `#`, `//`, `/* multi line comments */`
-- Support multi line string value, withs `'''multi line string''''`, `"""multi line string"""`
+- Support comments start withs `!`, `#`, `//`, `/* multi line comments */`
+- Support multi line string value, withs `\\`, `'''multi line string''''`, `"""multi line string"""`
+- Support value refer parse by var. format: `${some.other.key}`
 - Support ENV var parse. format: `{$APP_ENV}`, `{$APP_ENV | default}`
-- Support value refer parse by var. format: `{$key_name}`
 
 > **[中文说明](README.zh-CN.md)**
 

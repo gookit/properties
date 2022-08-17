@@ -10,7 +10,8 @@ import (
 	"github.com/mitchellh/mapstructure"
 )
 
-var refRegex = regexp.MustCompile(`^[a-z][a-z\d.]+`)
+// eg: ${some.other.key} -> some.other.key
+var refRegex = regexp.MustCompile(`^[a-z][a-z\d.]+$`)
 
 func parseVarRefName(val string) (string, bool) {
 	if !strings.HasPrefix(val, VarRefStartChars) || !strings.HasSuffix(val, "}") {

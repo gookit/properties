@@ -2,7 +2,7 @@ package properties
 
 import "github.com/mitchellh/mapstructure"
 
-// DefaultTagName settings
+// DefaultTagName for mapping data to struct.
 var DefaultTagName = "properties"
 
 // OpFunc custom option func
@@ -12,7 +12,7 @@ type OpFunc func(opts *Options)
 type Options struct {
 	// ParseEnv parse ENV var name, default True. eg: "${SHELL}"
 	ParseEnv bool
-	// ParseVar reference. eg: "${other.var.name}"
+	// ParseVar reference. eg: "${other.var.name}". default: true
 	ParseVar bool
 	// ParseTime string on binding struct. eg: 3s -> 3*time.Second
 	ParseTime bool
@@ -26,6 +26,8 @@ type Options struct {
 	//
 	// allow chars: #, //
 	InlineComment bool
+	// InlineSlice support parse the inline slice. eg: [23, 34]. default: false
+	InlineSlice bool
 	// TrimMultiLine trim "\n" for multi line value. default: false
 	TrimMultiLine bool
 	// BeforeCollect value handle func.
@@ -39,9 +41,25 @@ func (opts *Options) shouldAddHookFunc() bool {
 	return false
 }
 
+func (opts *Options) makeDecoderConfig() *mapstructure.DecoderConfig {
+	decConf := opts.MapStructConfig
+	// compatible with settings on opts.TagName
+	if decConf.TagName == "" {
+		decConf.TagName = opts.TagName
+	}
+
+	// add hook on decode value to struct
+	if opts.shouldAddHookFunc() {
+		decConf.DecodeHook = ValDecodeHookFunc(opts.ParseEnv, opts.ParseTime)
+	}
+
+	return &decConf
+}
+
 func newDefaultOption() *Options {
 	return &Options{
-		TagName: DefaultTagName,
+		ParseVar: true,
+		TagName:  DefaultTagName,
 		// map struct config
 		MapStructConfig: mapstructure.DecoderConfig{
 			TagName: DefaultTagName,

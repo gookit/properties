@@ -11,6 +11,9 @@ import (
 
 func TestParser_Parse(t *testing.T) {
 	text := `
+name = inhere
+age = 345
+
  ##### comments1
 top.sub.key0 = a string value
 top.sub.key1 = "a string value"
@@ -20,35 +23,45 @@ top.sub.key2 = 234
 # inline list
 top2.inline.list.ids = [234, 345, 456]
 
+# use var refer
+top2.sub.var-refer = ${top.sub.key0}
+
 /*
 multi line
 comments
 */
-top.sub.key2-other = has-char
+top2.sub.key2-other = has-char
 
 # comments 2
 top.sub.key3 = false
-top.sub.key4[0] = abc # comments at end1
-top.sub.key4[1] = def // comments at end2
+
+# slice list
+top.sub.key4[0] = abc
+top.sub.key4[1] = def
 
 ## --- comments 3 ---
 top.sub.key5[0].f1 = ab
 top.sub.key5[1].f2 = de
-invalid line
+
 top.sub2.mline1 = """multi line
 value
 """
+
+top.sub2.mline2 = this is\
+multi line2\
+value
 `
 
 	p := properties.NewParser()
 	err := p.Parse(text)
 	assert.NoErr(t, err)
+	fmt.Println("\ndata map:")
 	dump.NoLoc(p.Data)
 
-	fmt.Println("string map:")
+	fmt.Println("\nstring map:")
 	dump.NoLoc(p.SMap())
 
-	fmt.Println("comments:")
+	fmt.Println("\ncomments:")
 	dump.NoLoc(p.Comments())
 }
 

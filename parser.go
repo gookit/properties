@@ -304,6 +304,8 @@ func (p *Parser) setValue(key, value, comments string) {
 	// set value by keys
 	if len(keys) == 1 {
 		p.Data[key] = value
+	} else if len(p.Data) == 0 {
+		p.Data = maputil.MakeByKeys(keys, value)
 	} else {
 		err := p.Data.SetByKeys(keys, value)
 		// err := maputil.SetByKeys((*map[string]any)(&p.Data), keys, value)
@@ -353,20 +355,10 @@ func (p *Parser) MapStruct(key string, ptr interface{}) error {
 		}
 	}
 
-	bindConf := p.opts.MapStructConfig
-	// compatible with settings on opts.TagName
-	if bindConf.TagName == "" {
-		bindConf.TagName = p.opts.TagName
-	}
+	decConf := p.opts.makeDecoderConfig()
+	decConf.Result = ptr // set result ptr
 
-	// add hook on decode value to struct
-	if p.opts.shouldAddHookFunc() {
-		bindConf.DecodeHook = ValDecodeHookFunc(p.opts.ParseEnv, p.opts.ParseTime)
-	}
-
-	bindConf.Result = ptr // set result struct ptr
-	decoder, err := mapstructure.NewDecoder(&bindConf)
-
+	decoder, err := mapstructure.NewDecoder(decConf)
 	if err == nil {
 		err = decoder.Decode(data)
 	}
