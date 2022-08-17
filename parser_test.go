@@ -16,9 +16,10 @@ age = 345
 
  ##### comments1
 top.sub.key0 = a string value
-top.sub.key1 = "a string value"
+top.sub.key1 = "a quote value1"
+top.sub.key2 = 'a quote value2'
 /* comments 1.1 */
-top.sub.key2 = 234
+top.sub.key3 = 234
 
 # inline list
 top2.inline.list.ids = [234, 345, 456]
@@ -47,8 +48,8 @@ top.sub2.mline1 = """multi line
 value
 """
 
-top.sub2.mline2 = this is\
-multi line2\
+top.sub2.mline2 = this is \
+multi line2 \
 value
 `
 
@@ -74,10 +75,11 @@ top2.sub.var-refer = ${top.sub.key0}
 
 	p := properties.NewParser()
 	err := p.Parse(text)
-
 	assert.NoErr(t, err)
+
 	smp := p.SMap()
-	dump.P(smp)
+	assert.Eq(t, "a string value", smp.Str("top.sub.key0"))
+	assert.Eq(t, "a string value", smp.Str("top2.sub.var-refer"))
 }
 
 func TestParser_Parse_multiLineValS(t *testing.T) {
@@ -201,4 +203,21 @@ key1 = val2
 	assert.NotEmpty(t, smp)
 	assert.ContainsKey(t, smp, "top.sub2.mline1")
 	assert.Eq(t, "\n", smp.Str("top.sub2.mline1"))
+}
+
+func TestParser_Parse_multiLineValQ(t *testing.T) {
+	text := `key0 = val1
+top.sub2.mline1 = multi line \
+value
+key1 = val2
+`
+
+	p := properties.NewParser()
+	err := p.Parse(text)
+	assert.NoErr(t, err)
+	smp := p.SMap()
+	assert.NotEmpty(t, smp)
+	assert.ContainsKeys(t, smp, []string{"key0", "key1", "top.sub2.mline1"})
+	assert.Eq(t, "multi line value", smp.Str("top.sub2.mline1"))
+
 }

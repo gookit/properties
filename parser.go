@@ -18,20 +18,50 @@ import (
 const (
 	MultiLineValMarkS = "'''"
 	MultiLineValMarkD = `"""`
+	MultiLineValMarkQ = "\\"
 	MultiLineCmtEnd   = "*/"
 	VarRefStartChars  = "${"
 )
 
-// token consts
 const (
+	// TokInvalid invalid token
+	TokInvalid rune = 0
+	// TokOLComments one line comments
+	TokOLComments = 'c'
+	// TokMLComments multi line comments
 	TokMLComments = 'C'
-	TokInlineVal  = 'v'
-	TokMLValMarkS = 'm' // multi line value by single quotes: '''
-	TokMLValMarkD = 'M' // multi line value by double quotes: """
+	// TokILComments inline comments
+	TokILComments = 'i'
+	// TokValueLine value line
+	TokValueLine = 'v'
+	// TokMLValMarkS multi line value by single quotes: '''
+	TokMLValMarkS = 'm'
+	// TokMLValMarkD multi line value by double quotes: """
+	TokMLValMarkD = 'M'
+	// TokMLValMarkQ multi line value by left slash quote: \
+	TokMLValMarkQ = 'q'
 )
 
+// TokString name
+func TokString(tok rune) string {
+	switch tok {
+	case TokOLComments:
+		return "LINE_COMMENT"
+	case TokILComments:
+		return "INLINE_COMMENT"
+	case TokMLComments:
+		return "MLINE_COMMENT"
+	case TokValueLine:
+		return "VALUE_LINE"
+	case TokMLValMarkS, TokMLValMarkD, TokMLValMarkQ:
+		return "MLINE_VALUE"
+	default:
+		return "INVALID"
+	}
+}
+
 type tokenItem struct {
-	// see TokInlineVal
+	// see TokValueLine
 	kind rune
 	// key path string. eg: top.sub.some-key
 	path string
@@ -152,7 +182,7 @@ func (p *Parser) ParseFrom(r io.Reader) error {
 		if tok == TokMLComments {
 			comments += raw
 			if strings.HasSuffix(str, MultiLineCmtEnd) {
-				tok = 0
+				tok = TokInvalid
 			} else {
 				comments += "\n"
 			}
@@ -162,7 +192,7 @@ func (p *Parser) ParseFrom(r io.Reader) error {
 		// multi line value
 		if tok == TokMLValMarkS {
 			if strings.HasSuffix(str, MultiLineValMarkS) { // end
-				tok = 0
+				tok = TokInvalid
 				val += str[:ln-3]
 				// p.smap[key] = val
 				p.setValue(key, val, "")
@@ -175,7 +205,7 @@ func (p *Parser) ParseFrom(r io.Reader) error {
 		// multi line value
 		if tok == TokMLValMarkD {
 			if strings.HasSuffix(str, MultiLineValMarkD) { // end
-				tok = 0
+				tok = TokInvalid
 				val += str[:ln-3]
 				// p.smap[key] = val
 				p.setValue(key, val, "")
@@ -185,7 +215,22 @@ func (p *Parser) ParseFrom(r io.Reader) error {
 			continue
 		}
 
+		// multi line value
+		if tok == TokMLValMarkQ {
+			if strings.HasSuffix(str, MultiLineValMarkQ) { // go on
+				val += str[:ln-1]
+			} else {
+				tok = TokInvalid
+				val += str
+				// p.smap[key] = val
+				p.setValue(key, val, "")
+			}
+			continue
+		}
+
+		// a line comments
 		if str[0] == '#' {
+			tok = TokOLComments
 			comments += raw
 			continue
 		}
@@ -197,6 +242,7 @@ func (p *Parser) ParseFrom(r io.Reader) error {
 			}
 
 			if str[1] == '/' {
+				tok = TokOLComments
 				comments += raw
 				continue
 			}
@@ -207,13 +253,24 @@ func (p *Parser) ParseFrom(r io.Reader) error {
 				comments += raw
 
 				if strings.HasSuffix(str, MultiLineCmtEnd) {
-					tok = 0
+					tok = TokInvalid
 				} else {
 					comments += "\n"
 				}
 				continue
 			}
 		}
+
+		tok = TokValueLine
+
+		// TODO ...
+		// switch tok {
+		// case TokOLComments:
+		// case TokMLComments:
+		//
+		// case TokValueLine:
+		//
+		// }
 
 		nodes := strutil.SplitNTrimmed(str, "=", 2)
 		if len(nodes) != 2 {
@@ -227,33 +284,32 @@ func (p *Parser) ParseFrom(r io.Reader) error {
 			continue
 		}
 
-		fmt.Println("split: ", key, "=", val, ", tok=", tok)
+		fmt.Printf("split: %s = %s, tok=%d(%s)\n", key, val, tok, TokString(tok))
 
 		vln := len(val)
+		// multi line value ended by \
+		if vln > 0 && strings.HasSuffix(val, MultiLineValMarkQ) {
+			tok = TokMLValMarkQ
+			val = val[:vln-1]
+			continue
+		}
+
 		if vln > 2 {
 			// multi line value start
-			hasPfx := strutil.HasOnePrefix(val, []string{"'''", `"""`})
-			if hasPfx && tok == 0 {
+			hasPfx := strutil.HasOnePrefix(val, []string{MultiLineValMarkD, MultiLineValMarkS})
+			if hasPfx && tok == TokValueLine {
 				tok = TokMLValMarkS
 				if val[0] == '"' {
 					tok = TokMLValMarkD
 				}
 				val = val[3:] + "\n"
-
-				// TODO end at inline: """value"""
 				continue
 			}
 
 			// clear quotes
-			if strings.HasPrefix(val, "'") {
-				if pos := strings.IndexRune(val[1:], '\''); pos > -1 {
-					val = val[1 : pos+1]
-				}
-			} else if strings.HasPrefix(val, `"`) {
-				if pos := strings.IndexRune(val[1:], '"'); pos > -1 {
-					val = val[1 : pos+1]
-				}
-			} else {
+			if val[0] == '"' || val[0] == '\'' {
+				val = strutil.Unquote(val)
+			} else if p.opts.InlineComment {
 				// split inline comments
 				var comment string
 				val, comment = p.splitInlineComment(val)
@@ -272,7 +328,6 @@ func (p *Parser) ParseFrom(r io.Reader) error {
 			comments = "" // reset
 		}
 
-		// p.smap[key] = val
 		p.setValue(key, val, "")
 	}
 
@@ -381,10 +436,6 @@ func (p *Parser) Comments() map[string]string {
 }
 
 func (p *Parser) splitInlineComment(val string) (string, string) {
-	if !p.opts.InlineComment {
-		return val, ""
-	}
-
 	if pos := strings.IndexRune(val, '#'); pos > -1 {
 		return strings.TrimRight(val[0:pos], " "), val[pos:]
 	}
