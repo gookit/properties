@@ -66,3 +66,37 @@ age = 200
 }
 ```
 
+## Marshal/Unmarshal
+
+- `Marshal(v interface{}) ([]byte, error)`
+- `Unmarshal(v []byte, ptr interface{}) error`
+
+## Config management
+
+If you want more support for file formats and multi file loads, recommended use [gookit/config](https://github.com/gookit/config)
+
+- Support multi formats: `JSON`(default), `INI`, `Properties`, `YAML`, `TOML`, `HCL`
+- Support multi file loads, will auto merge loaded data
+
+## Gookit packages
+
+- [gookit/ini](https://github.com/gookit/ini) INI parse by golang. INI config data management library.
+- [gookit/rux](https://github.com/gookit/rux) Simple and fast request router, web framework for golang
+- [gookit/gcli](https://github.com/gookit/gcli) build CLI application, tool library, running CLI commands
+- [gookit/event](https://github.com/gookit/event) Lightweight event manager and dispatcher implements by Go
+- [gookit/cache](https://github.com/gookit/cache) Generic cache use and cache manager for golang. support File, Memory, Redis, Memcached.
+- [gookit/config](https://github.com/gookit/config) Go config management. support JSON, YAML, TOML, INI, HCL, ENV and Flags
+- [gookit/color](https://github.com/gookit/color) A command-line color library with true color support, universal API methods and Windows support
+- [gookit/filter](https://github.com/gookit/filter) Provide filtering, sanitizing, and conversion of golang data
+- [gookit/validate](https://github.com/gookit/validate) Use for data validation and filtering. support Map, Struct, Form data
+- [gookit/goutil](https://github.com/gookit/goutil) Some utils for the Go: string, array/slice, map, format, cli, env, filesystem, test and more
+- More, please see https://github.com/gookit
+
+## See also
+
+- Ini parse [gookit/ini/parser](https://github.com/gookit/ini/tree/master/parser)
+- Properties parse [gookit/properties](https://github.com/gookit/properties)
+
+## License
+
+**MIT**
