@@ -23,7 +23,7 @@ top.sub.key2 = 'a quote value2'
 /* comments 1.1 */
 top.sub.key3 = 234
 
-# inline list
+! inline list
 top2.inline.list.ids = [234, 345, 456]
 
 # use var refer
@@ -46,10 +46,12 @@ top.sub.key4[1] = def
 top.sub.key5[0].f1 = ab
 top.sub.key5[1].f2 = de
 
+# multi line value
 top.sub2.mline1 = """multi line
 value
 """
 
+# multi line value2
 top.sub2.mline2 = this is \
 multi line2 \
 value

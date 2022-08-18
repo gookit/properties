@@ -27,9 +27,9 @@ const (
 const (
 	// TokInvalid invalid token
 	TokInvalid rune = 0
-	// TokOLComments one line comments
+	// TokOLComments one line comments start by !,#
 	TokOLComments = 'c'
-	// TokMLComments multi line comments
+	// TokMLComments multi line comments by /* */
 	TokMLComments = 'C'
 	// TokILComments inline comments
 	TokILComments = 'i'
@@ -140,6 +140,15 @@ func (p *Parser) WithOptions(optFns ...OpFunc) *Parser {
 	return p
 }
 
+// Unmarshal parse properties text and decode to struct
+func (p *Parser) Unmarshal(v []byte, ptr interface{}) error {
+	if err := p.ParseBytes(v); err != nil {
+		return err
+	}
+
+	return p.MapStruct("", ptr)
+}
+
 // Parse text contents
 func (p *Parser) Parse(text string) error {
 	if text = strings.TrimSpace(text); text == "" {
@@ -230,7 +239,7 @@ func (p *Parser) ParseFrom(r io.Reader) error {
 		}
 
 		// a line comments
-		if str[0] == '#' {
+		if str[0] == '#' || str[0] == '!' {
 			tok = TokOLComments
 			comments += raw
 			continue

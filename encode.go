@@ -20,6 +20,11 @@ func NewEncoder() *Encoder {
 	}
 }
 
+// Marshal data(struct, map) to properties text
+func (e *Encoder) Marshal(v interface{}) ([]byte, error) {
+	return e.Encode(v)
+}
+
 // Encode data(struct, map) to properties text
 func (e *Encoder) Encode(v interface{}) ([]byte, error) {
 	mp, ok := v.(map[string]interface{})
