@@ -10,9 +10,9 @@
 
 - Generic properties contents parser, marshal and unmarshal
 - Support `Marshal` and `Unmarshal` like `json` package
-- Support comments start withs `!`, `#`
+- Support line comments start with `!`, `#`
   - enhanced: allow `//`, `/* multi line comments */`
-- Support multi line string value, withs `\\`
+- Support multi line string value, end with `\\`
   - enhanced: allow `'''multi line string''''`, `"""multi line string"""`
 - Support value refer parse by var. format: `${some.other.key}`
 - Support ENV var parse. format: `${APP_ENV}`, `${APP_ENV | default}`
@@ -26,6 +26,121 @@ go get github.com/gookit/properties
 ```
 
 ## Usage
+
+Example `properties` contents:
+
+```properties
+name = inhere
+age = 345
+only-key = 
+env-key = ${SHELL | bash}
+
+ ##### comments1
+top.sub.key0 = a string value
+top.sub.key1 = "a quote value1"
+top.sub.key2 = 'a quote value2'
+/* comments 1.1 */
+top.sub.key3 = 234
+
+! inline list
+top2.inline.list.ids = [234, 345, 456]
+
+# use var refer
+top2.sub.var-refer = ${top.sub.key0}
+
+/*
+multi line
+comments
+*/
+top2.sub.key2-other = has-char
+
+# comments 2
+top.sub.key3 = false
+
+# slice list
+top.sub.key4[0] = abc
+top.sub.key4[1] = def
+
+## --- comments 3 ---
+top.sub.key5[0].f1 = ab
+top.sub.key5[1].f2 = de
+
+# multi line value
+top.sub2.mline1 = """multi line
+value
+"""
+
+# multi line value2
+top.sub2.mline2 = this is \
+multi line2 \
+value
+```
+
+## Parse to data
+
+```go
+  p := properties.NewParser(
+      properties.ParseEnv,
+      properties.ParseInlineSlice,
+  )
+  p.Parse(text)
+  fmt.Println("\ndata map:")
+  dump.NoLoc(p.Data)
+```
+
+**Output**:
+
+```shell
+maputil.Data { #len=6
+  "name": string("inhere"), #len=6
+  "age": string("345"), #len=3
+  "only-key": string(""), #len=0
+  "env-key": string("/bin/zsh"), #len=8
+  "top": map[string]interface {} { #len=2
+    "sub": map[string]interface {} { #len=6
+      "key5": []map[string]interface {} [ #len=2
+        map[string]interface {} { #len=1
+          "f1": string("ab"), #len=2
+        },
+        map[string]interface {} { #len=1
+          "f2": string("de"), #len=2
+        },
+      ],
+      "key0": string("a string value"), #len=14
+      "key1": string("a quote value1"), #len=14
+      "key2": string("a quote value2"), #len=14
+      "key3": string("false"), #len=5
+      "key4": []string [ #len=2
+        string("abc"), #len=3
+        string("def"), #len=3
+      ],
+    },
+    "sub2": map[string]interface {} { #len=2
+      "mline2": string("this is multi line2 value"), #len=25
+      "mline1": string("multi line
+value
+"), #len=17
+    },
+  },
+  "top2": map[string]interface {} { #len=2
+    "sub": map[string]interface {} { #len=2
+      "var-refer": string("a string value"), #len=14
+      "key2-other": string("has-char"), #len=8
+    },
+    "inline": map[string]interface {} { #len=1
+      "list": map[string]interface {} { #len=1
+        "ids": []string [ #len=3
+          string("234"), #len=3
+          string("345"), #len=3
+          string("456"), #len=3
+        ],
+      },
+    },
+  },
+},
+```
+
+## Parse and binding struct
 
 ```go
 package main
