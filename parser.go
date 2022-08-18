@@ -24,93 +24,12 @@ const (
 	VarRefStartChars  = "${"
 )
 
-const (
-	// TokInvalid invalid token
-	TokInvalid rune = 0
-	// TokOLComments one line comments start by !,#
-	TokOLComments = 'c'
-	// TokMLComments multi line comments by /* */
-	TokMLComments = 'C'
-	// TokILComments inline comments
-	TokILComments = 'i'
-	// TokValueLine value line
-	TokValueLine = 'v'
-	// TokMLValMarkS multi line value by single quotes: '''
-	TokMLValMarkS = 'm'
-	// TokMLValMarkD multi line value by double quotes: """
-	TokMLValMarkD = 'M'
-	// TokMLValMarkQ multi line value by left slash quote: \
-	TokMLValMarkQ = 'q'
-)
-
-// TokString name
-func TokString(tok rune) string {
-	switch tok {
-	case TokOLComments:
-		return "LINE_COMMENT"
-	case TokILComments:
-		return "INLINE_COMMENT"
-	case TokMLComments:
-		return "MLINE_COMMENT"
-	case TokValueLine:
-		return "VALUE_LINE"
-	case TokMLValMarkS, TokMLValMarkD, TokMLValMarkQ:
-		return "MLINE_VALUE"
-	default:
-		return "INVALID"
-	}
-}
-
-type tokenItem struct {
-	// see TokValueLine
-	kind rune
-	// key path string. eg: top.sub.some-key
-	path string
-	keys []string
-
-	// token value
-	value string
-	// for multi line value.
-	values []string
-	// for multi line comments.
-	comments []string
-}
-
-func newTokenItem(path, value string, kind rune) *tokenItem {
-	tk := &tokenItem{
-		kind:  kind,
-		value: value,
-	}
-
-	tk.setPath(path)
-	return tk
-}
-
-func (ti *tokenItem) setPath(path string) {
-	// TODO check path valid
-	ti.path = path
-
-	if strings.ContainsRune(path, '.') {
-		ti.keys = strings.Split(path, ".")
-	}
-}
-
-// Valid of the token data.
-func (ti *tokenItem) addValue(val string) {
-	ti.values = append(ti.values, val)
-}
-
-// Valid of the token data.
-func (ti *tokenItem) Valid() bool {
-	return ti.kind != 0
-}
-
 // Parser for parse properties contents
 type Parser struct {
 	maputil.Data
 	// last parse error
 	err error
-	lex *lexer
+	// lex *lexer
 	// text string
 	opts *Options
 	// key path map
@@ -145,20 +64,22 @@ func (p *Parser) Unmarshal(v []byte, ptr interface{}) error {
 	if err := p.ParseBytes(v); err != nil {
 		return err
 	}
-
 	return p.MapStruct("", ptr)
 }
 
 // Parse text contents
 func (p *Parser) Parse(text string) error {
 	if text = strings.TrimSpace(text); text == "" {
-		return errors.New("cannot input empty string to parse")
+		return errors.New("cannot input empty contents to parse")
 	}
 	return p.ParseFrom(strings.NewReader(text))
 }
 
 // ParseBytes text contents
 func (p *Parser) ParseBytes(bs []byte) error {
+	if len(bs) == 0 {
+		return errors.New("cannot input empty contents to parse")
+	}
 	return p.ParseFrom(bytes.NewReader(bs))
 }
 
@@ -204,8 +125,8 @@ func (p *Parser) ParseFrom(r io.Reader) error {
 			if strings.HasSuffix(str, MultiLineValMarkS) { // end
 				tok = TokInvalid
 				val += str[:ln-3]
-				// p.smap[key] = val
-				p.setValue(key, val, "")
+				p.setValue(key, val, comments)
+				comments = "" // reset
 			} else {
 				val += str + "\n"
 			}
@@ -217,8 +138,8 @@ func (p *Parser) ParseFrom(r io.Reader) error {
 			if strings.HasSuffix(str, MultiLineValMarkD) { // end
 				tok = TokInvalid
 				val += str[:ln-3]
-				// p.smap[key] = val
-				p.setValue(key, val, "")
+				p.setValue(key, val, comments)
+				comments = "" // reset
 			} else {
 				val += str + "\n"
 			}
@@ -232,8 +153,8 @@ func (p *Parser) ParseFrom(r io.Reader) error {
 			} else {
 				tok = TokInvalid
 				val += str
-				// p.smap[key] = val
-				p.setValue(key, val, "")
+				p.setValue(key, val, comments)
+				comments = "" // reset
 			}
 			continue
 		}
@@ -247,7 +168,7 @@ func (p *Parser) ParseFrom(r io.Reader) error {
 
 		if str[0] == '/' {
 			if ln < 2 {
-				p.err = errorx.Rawf("invalid string %q, at line#%d", str, line)
+				p.err = errorx.Rawf("invalid contents %q, at line#%d", str, line)
 				continue
 			}
 
@@ -284,13 +205,13 @@ func (p *Parser) ParseFrom(r io.Reader) error {
 
 		nodes := strutil.SplitNTrimmed(str, "=", 2)
 		if len(nodes) != 2 {
-			p.err = errorx.Rawf("invalid format(key=val): %q, at line#%d", str, line)
+			p.err = errorx.Rawf("invalid contents %q(should be KEY=VALUE), at line#%d", str, line)
 			continue
 		}
 
 		key, val = nodes[0], nodes[1]
 		if len(key) == 0 {
-			p.err = errorx.Rawf("key is empty: %q, at line#%d", str, line)
+			p.err = errorx.Rawf("key cannot be empty: %q, at line#%d", str, line)
 			continue
 		}
 
@@ -335,12 +256,8 @@ func (p *Parser) ParseFrom(r io.Reader) error {
 			}
 		}
 
-		if len(comments) > 0 {
-			p.comments[key] = comments
-			comments = "" // reset
-		}
-
-		p.setValue(key, val, "")
+		p.setValue(key, val, comments)
+		comments = "" // reset
 	}
 
 	return p.err
@@ -451,11 +368,6 @@ func (p *Parser) MapStruct(key string, ptr interface{}) error {
 		err = decoder.Decode(data)
 	}
 	return err
-}
-
-// Err last parse error
-func (p *Parser) Err() error {
-	return p.err
 }
 
 // SMap data

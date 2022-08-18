@@ -1,4 +1,4 @@
-package properties
+package _example
 
 import (
 	"fmt"
@@ -71,6 +71,6 @@ func (l *lexer) parse() error {
 	return nil
 }
 
-func (l *lexer) next() tokenItem {
-	return tokenItem{}
-}
+// func (l *lexer) next() tokenItem {
+// 	return tokenItem{}
+// }

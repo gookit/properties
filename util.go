@@ -6,7 +6,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gookit/goutil/envutil"
 	"github.com/gookit/goutil/strutil"
 	"github.com/mitchellh/mapstructure"
 )
@@ -36,15 +35,6 @@ func ValDecodeHookFunc() mapstructure.DecodeHookFunc {
 		}
 		return str, nil
 	}
-}
-
-// that parse ENV var name
-func parseEnvVarName(val string) interface{} {
-	ln := len(val)
-	if ln < 3 {
-		return val
-	}
-	return envutil.ParseEnvValue(val)
 }
 
 // eg: ${some.other.key} -> some.other.key
@@ -78,6 +68,5 @@ func splitInlineComment(val string) (string, string) {
 	if pos := strings.Index(val, "//"); pos > -1 {
 		return strings.TrimRight(val[0:pos], " "), val[pos:]
 	}
-
 	return val, ""
 }

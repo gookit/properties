@@ -54,6 +54,8 @@ func (e *Encoder) encode(mp map[string]interface{}) ([]byte, error) {
 	var path string
 	var buf bytes.Buffer
 
+	// TODO sort keys
+
 	// TODO...
 	for name, val := range mp {
 		path = name

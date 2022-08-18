@@ -54,7 +54,7 @@ func ExampleMarshal() {
 
 	fmt.Println(string(bts))
 
-	// Output:
+	// Output like:
 	// name=inhere
 	// age=300
 }

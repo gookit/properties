@@ -35,7 +35,7 @@ comments
 */
 top2.sub.key2-other = has-char
 
-# comments 2
+// comments 2
 top.sub.key3 = false
 
 # slice list
@@ -61,6 +61,9 @@ value
 		properties.WithDebug,
 		properties.ParseEnv,
 		properties.ParseInlineSlice,
+		func(opts *properties.Options) {
+			opts.TrimValue = true
+		},
 	)
 	err := p.Parse(text)
 	assert.NoErr(t, err)
@@ -232,5 +235,22 @@ key1 = val2
 	assert.NotEmpty(t, smp)
 	assert.ContainsKeys(t, smp, []string{"key0", "key1", "top.sub2.mline1"})
 	assert.Eq(t, "multi line value", smp.Str("top.sub2.mline1"))
+}
 
+func TestParser_Parse_err(t *testing.T) {
+	p := properties.NewParser()
+	assert.ErrMsg(t, p.Parse(""), `cannot input empty contents to parse`)
+	assert.ErrMsg(t, p.ParseBytes(nil), `cannot input empty contents to parse`)
+
+	err := p.Parse("no-value")
+	assert.ErrMsg(t, err, `invalid contents "no-value"(should be KEY=VALUE), at line#1`)
+
+	err = p.Parse("/")
+	assert.ErrMsg(t, err, `invalid contents "/", at line#1`)
+
+	err = p.Parse("=value")
+	assert.ErrMsg(t, err, `key cannot be empty: "=value", at line#1`)
+
+	err = p.Unmarshal(nil, nil)
+	assert.ErrMsg(t, err, `cannot input empty contents to parse`)
 }

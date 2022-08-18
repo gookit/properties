@@ -2,8 +2,8 @@
 package properties
 
 // Parse properties text contents
-func Parse(text string) (*Parser, error) {
-	p := NewParser()
+func Parse(text string, optFns ...OpFunc) (*Parser, error) {
+	p := NewParser(optFns...)
 	return p, p.Parse(text)
 }
 
