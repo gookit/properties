@@ -3,10 +3,10 @@
 ![GitHub go.mod Go version](https://img.shields.io/github/go-mod/go-version/gookit/properties?style=flat-square)
 [![Unit-Tests](https://github.com/gookit/properties/actions/workflows/go.yml/badge.svg)](https://github.com/gookit/properties/actions/workflows/go.yml)
 [![GitHub tag (latest SemVer)](https://img.shields.io/github/tag/gookit/properties)](https://github.com/gookit/properties)
-[![GoDoc](https://godoc.org/github.com/gookit/properties?status.svg)](https://pkg.go.dev/github.com/gookit/properties/v3)
 [![Go Report Card](https://goreportcard.com/badge/github.com/gookit/properties)](https://goreportcard.com/report/github.com/gookit/properties)
+[![Go Reference](https://pkg.go.dev/badge/github.com/gookit/properties.svg)](https://pkg.go.dev/github.com/gookit/properties)
 
-`properties` - Java Properties format contents parse, marshal and unmarshal library.
+`properties` - Java `Properties` 格式内容的解析器，编码解码库
 
 - 通用的Java `properties` 格式内容解析器
 - 支持像 `json` 包一样的 `Marshal` 和 `Unmarshal` 
@@ -79,13 +79,13 @@ value
 ## 解析内容
 
 ```go
-  p := properties.NewParser(
-      properties.ParseEnv,
-      properties.ParseInlineSlice,
-  )
-  p.Parse(text)
-  fmt.Println("\ndata map:")
-  dump.NoLoc(p.Data)
+p := properties.NewParser(
+    properties.ParseEnv,
+    properties.ParseInlineSlice,
+)
+p.Parse(text)
+fmt.Println("\ndata map:")
+dump.NoLoc(p.Data)
 ```
 
 **Output**:
@@ -181,10 +181,22 @@ age = 200
 }
 ```
 
-## Marshal/Unmarshal
+## 编码解码
 
 - `Marshal(v interface{}) ([]byte, error)`
 - `Unmarshal(v []byte, ptr interface{}) error`
+
+**解码示例**:
+
+```go
+cfg := &MyConf{}
+err := properties.Unmarshal([]byte(text), cfg)
+if err != nil {
+    panic(err)
+}
+
+fmt.Println(*cfg)
+```
 
 ## 配置管理
 
