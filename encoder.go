@@ -2,13 +2,17 @@ package properties
 
 import (
 	"bytes"
+	"errors"
+	"reflect"
+	"strings"
 
-	"github.com/gookit/goutil/strutil"
+	"github.com/gookit/goutil/reflects"
 	"github.com/mitchellh/mapstructure"
 )
 
 // Encoder struct
 type Encoder struct {
+	buf bytes.Buffer
 	// TagName for encode a struct. default: properties
 	TagName string
 }
@@ -21,17 +25,29 @@ func NewEncoder() *Encoder {
 }
 
 // Marshal data(struct, map) to properties text
-func (e *Encoder) Marshal(v interface{}) ([]byte, error) {
+func (e *Encoder) Marshal(v any) ([]byte, error) {
 	return e.Encode(v)
 }
 
 // Encode data(struct, map) to properties text
-func (e *Encoder) Encode(v interface{}) ([]byte, error) {
-	mp, ok := v.(map[string]interface{})
+func (e *Encoder) Encode(v any) ([]byte, error) {
+	if v == nil {
+		return nil, nil
+	}
 
-	// try convert v to map[string]interface{}
-	if !ok {
-		mp = make(map[string]interface{})
+	if err := e.encode(v); err != nil {
+		return nil, err
+	}
+	return e.buf.Bytes(), nil
+}
+
+// Encode data(struct, map) to properties text
+func (e *Encoder) encode(v any) error {
+	rv := reflect.Indirect(reflect.ValueOf(v))
+
+	// convert struct to map[string]any
+	if rv.Kind() == reflect.Struct {
+		mp := make(map[string]any)
 		cfg := &mapstructure.DecoderConfig{
 			TagName: e.TagName,
 			Result:  &mp,
@@ -39,31 +55,32 @@ func (e *Encoder) Encode(v interface{}) ([]byte, error) {
 
 		decoder, err := mapstructure.NewDecoder(cfg)
 		if err != nil {
-			return nil, err
+			return err
 		}
 
 		if err := decoder.Decode(v); err != nil {
-			return nil, err
+			return err
 		}
+
+		rv = reflect.ValueOf(mp)
+	} else if rv.Kind() != reflect.Map {
+		return errors.New("only allow encode map and struct data")
 	}
 
-	return e.encode(mp)
+	// TODO collect to map[string]string then sort keys
+	reflects.FlatMap(rv, e.writeln)
+	return nil
 }
 
-func (e *Encoder) encode(mp map[string]interface{}) ([]byte, error) {
-	var path string
-	var buf bytes.Buffer
+func (e *Encoder) writeln(path string, rv reflect.Value) {
+	e.buf.WriteString(path)
+	e.buf.WriteByte('=')
 
-	// TODO sort keys
-
-	// TODO...
-	for name, val := range mp {
-		path = name
-		buf.WriteString(path)
-		buf.WriteByte('=')
-		buf.WriteString(strutil.QuietString(val))
-		buf.WriteByte('\n')
+	val := reflects.String(rv)
+	if rv.Kind() == reflect.String && strings.ContainsRune(val, '\n') {
+		val = strings.Replace(val, "\n", "\\\n", -1)
 	}
 
-	return buf.Bytes(), nil
+	e.buf.WriteString(val)
+	e.buf.WriteByte('\n')
 }

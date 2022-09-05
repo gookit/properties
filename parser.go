@@ -60,7 +60,7 @@ func (p *Parser) WithOptions(optFns ...OpFunc) *Parser {
 }
 
 // Unmarshal parse properties text and decode to struct
-func (p *Parser) Unmarshal(v []byte, ptr interface{}) error {
+func (p *Parser) Unmarshal(v []byte, ptr any) error {
 	if err := p.ParseBytes(v); err != nil {
 		return err
 	}
@@ -281,7 +281,7 @@ func (p *Parser) setValue(key, value, comments string) {
 		}
 	}
 
-	var setVal interface{}
+	var setVal any
 	setVal = value
 	p.smap[key] = value
 
@@ -348,8 +348,8 @@ func (p *Parser) setValueByItem(ti tokenItem) {
 var ErrNotFound = errors.New("this key does not exists")
 
 // MapStruct mapping data to a struct ptr
-func (p *Parser) MapStruct(key string, ptr interface{}) error {
-	var data interface{}
+func (p *Parser) MapStruct(key string, ptr any) error {
+	var data any
 	if key == "" { // binding all data
 		data = p.Data
 	} else { // sub data of the p.Data
