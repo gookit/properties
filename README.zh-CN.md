@@ -186,7 +186,7 @@ age = 200
 - `Marshal(v interface{}) ([]byte, error)`
 - `Unmarshal(v []byte, ptr interface{}) error`
 
-**解码示例**:
+**示例: 解码**:
 
 ```go
 cfg := &MyConf{}
@@ -198,12 +198,47 @@ if err != nil {
 fmt.Println(*cfg)
 ```
 
+**示例: 编码**
+
+```go
+data := map[string]any{
+	"name": "inhere",
+	"age":  234,
+	"str1": "a string",
+	"str2": "a multi \nline string",
+	"top": map[string]any{
+		"sub0": "val0",
+		"sub1": []string{"val1-0", "val1-1"},
+	},
+}
+
+bs, err = properties.Marshal(data)
+if err != nil {
+	panic(err)
+}
+
+fmt.Println(string(bs))
+```
+
+输出:
+
+```properties
+str1=a string
+str2=a multi \
+line string
+top.sub1[0]=val1-0
+top.sub1[1]=val1-1
+top.sub0=val0
+name=inhere
+age=234
+```
+
 ## 配置管理
 
-If you want more support for file formats and multi file loads, recommended use [gookit/config](https://github.com/gookit/config)
+如果您想要同时支持多种格式和多文件加载，建议使用 [gookit/config](https://github.com/gookit/config)
 
-- Support multi formats: `JSON`(default), `INI`, `Properties`, `YAML`, `TOML`, `HCL`
-- Support multi file loads, will auto merge loaded data
+- 支持多种格式：`JSON`（默认）、`INI`、`Properties`、`YAML`、`TOML`、`HCL`
+- 支持多文件加载，会自动合并加载的数据
 
 ## Gookit packages
 
