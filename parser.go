@@ -1,17 +1,14 @@
 package properties
 
 import (
-	"bufio"
 	"bytes"
 	"errors"
-	"fmt"
 	"io"
 	"strings"
 
 	"github.com/gookit/goutil/envutil"
-	"github.com/gookit/goutil/errorx"
 	"github.com/gookit/goutil/maputil"
-	"github.com/gookit/goutil/strutil"
+	"github.com/gookit/goutil/strutil/textscan"
 	"github.com/mitchellh/mapstructure"
 )
 
@@ -85,188 +82,43 @@ func (p *Parser) ParseBytes(bs []byte) error {
 
 // ParseFrom contents
 func (p *Parser) ParseFrom(r io.Reader) error {
-	p.err = nil
-	s := bufio.NewScanner(r)
+	ts := textscan.NewScanner(r)
+	ts.AddMatchers(
+		&textscan.CommentsMatcher{
+			InlineChars: []byte{'#', '!'},
+		},
+		&textscan.KeyValueMatcher{
+			InlineComment: p.opts.InlineComment,
+			MergeComments: true,
+		},
+	)
 
-	var tok rune
-	var line int
-	var key, val, comments string
+	// scan and parsing
+	for ts.Scan() {
+		tok := ts.Token()
 
-	// TODO
-	// var ti tokenItem
-
-	for s.Scan() { // split by '\n'
-		if p.err != nil {
-			break
+		// collect value
+		if tok.Kind() == textscan.TokValue {
+			p.setValue(tok.(*textscan.ValueToken))
 		}
-
-		line++
-
-		raw := s.Text()
-		str := strings.TrimSpace(raw)
-		ln := len(str)
-		if ln == 0 {
-			continue
-		}
-
-		// multi line comments
-		if tok == TokMLComments {
-			comments += raw
-			if strings.HasSuffix(str, MultiLineCmtEnd) {
-				tok = TokInvalid
-			} else {
-				comments += "\n"
-			}
-			continue
-		}
-
-		// multi line value
-		if tok == TokMLValMarkS {
-			if strings.HasSuffix(str, MultiLineValMarkS) { // end
-				tok = TokInvalid
-				val += str[:ln-3]
-				p.setValue(key, val, comments)
-				comments = "" // reset
-			} else {
-				val += str + "\n"
-			}
-			continue
-		}
-
-		// multi line value
-		if tok == TokMLValMarkD {
-			if strings.HasSuffix(str, MultiLineValMarkD) { // end
-				tok = TokInvalid
-				val += str[:ln-3]
-				p.setValue(key, val, comments)
-				comments = "" // reset
-			} else {
-				val += str + "\n"
-			}
-			continue
-		}
-
-		// multi line value
-		if tok == TokMLValMarkQ {
-			if strings.HasSuffix(str, MultiLineValMarkQ) { // go on
-				val += str[:ln-1]
-			} else {
-				tok = TokInvalid
-				val += str
-				p.setValue(key, val, comments)
-				comments = "" // reset
-			}
-			continue
-		}
-
-		// a line comments
-		if str[0] == '#' || str[0] == '!' {
-			tok = TokOLComments
-			comments += raw
-			continue
-		}
-
-		if str[0] == '/' {
-			if ln < 2 {
-				p.err = errorx.Rawf("invalid contents %q, at line#%d", str, line)
-				continue
-			}
-
-			if str[1] == '/' {
-				tok = TokOLComments
-				comments += raw
-				continue
-			}
-
-			// multi line comments start
-			if str[1] == '*' {
-				tok = TokMLComments
-				comments += raw
-
-				if strings.HasSuffix(str, MultiLineCmtEnd) {
-					tok = TokInvalid
-				} else {
-					comments += "\n"
-				}
-				continue
-			}
-		}
-
-		tok = TokValueLine
-
-		// TODO ...
-		// switch tok {
-		// case TokOLComments:
-		// case TokMLComments:
-		//
-		// case TokValueLine:
-		//
-		// }
-
-		nodes := strutil.SplitNTrimmed(str, "=", 2)
-		if len(nodes) != 2 {
-			p.err = errorx.Rawf("invalid contents %q(should be KEY=VALUE), at line#%d", str, line)
-			continue
-		}
-
-		key, val = nodes[0], nodes[1]
-		if len(key) == 0 {
-			p.err = errorx.Rawf("key cannot be empty: %q, at line#%d", str, line)
-			continue
-		}
-
-		if p.opts.Debug {
-			fmt.Printf("value line: %s = %s, tok=%d(%s)\n", key, val, tok, TokString(tok))
-		}
-
-		vln := len(val)
-		// multi line value ended by \
-		if vln > 0 && strings.HasSuffix(val, MultiLineValMarkQ) {
-			tok = TokMLValMarkQ
-			val = val[:vln-1]
-			continue
-		}
-
-		if vln > 2 {
-			// multi line value start
-			hasPfx := strutil.HasOnePrefix(val, []string{MultiLineValMarkD, MultiLineValMarkS})
-			if hasPfx && tok == TokValueLine {
-				tok = TokMLValMarkS
-				if val[0] == '"' {
-					tok = TokMLValMarkD
-				}
-				val = val[3:] + "\n"
-				continue
-			}
-
-			// clear quotes
-			if val[0] == '"' || val[0] == '\'' {
-				val = strutil.Unquote(val)
-			} else if p.opts.InlineComment {
-				// split inline comments
-				var comment string
-				val, comment = splitInlineComment(val)
-				if len(comment) > 0 {
-					if len(comments) > 0 {
-						comments += "\n" + comment
-					} else {
-						comments += comment
-					}
-				}
-			}
-		}
-
-		p.setValue(key, val, comments)
-		comments = "" // reset
 	}
 
+	p.err = ts.Err()
 	return p.err
 }
 
 // collect set value
-func (p *Parser) setValue(key, value, comments string) {
-	if len(comments) > 0 {
-		p.comments[key] = comments
+func (p *Parser) setValue(tok *textscan.ValueToken) {
+	var value string
+	if tok.Mark() == textscan.MultiLineValMarkQ {
+		value = strings.Join(tok.Values(), "")
+	} else {
+		value = tok.Value()
+	}
+
+	key := tok.Key()
+	if tok.HasComment() {
+		p.comments[key] = tok.Comment()
 	}
 
 	ln := len(value)
@@ -314,30 +166,6 @@ func (p *Parser) setValue(key, value, comments string) {
 		p.Data = maputil.MakeByKeys(keys, setVal)
 	} else {
 		err := p.Data.SetByKeys(keys, setVal)
-		if err != nil {
-			p.err = err
-		}
-	}
-}
-
-// collect set value
-func (p *Parser) setValueByItem(ti tokenItem) {
-	if !ti.Valid() {
-		return
-	}
-
-	if len(ti.comments) > 0 {
-		p.comments[ti.path] = strings.Join(ti.comments, "\n")
-	}
-
-	valueString := strings.Join(ti.values, "\n")
-	p.smap[ti.path] = valueString
-
-	// set value by keys
-	if len(ti.keys) == 1 {
-		p.Data[ti.path] = valueString
-	} else {
-		err := p.Data.SetByKeys(ti.keys, valueString)
 		if err != nil {
 			p.err = err
 		}

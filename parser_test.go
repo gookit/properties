@@ -243,13 +243,13 @@ func TestParser_Parse_err(t *testing.T) {
 	assert.ErrMsg(t, p.ParseBytes(nil), `cannot input empty contents to parse`)
 
 	err := p.Parse("no-value")
-	assert.ErrMsg(t, err, `invalid contents "no-value"(should be KEY=VALUE), at line#1`)
+	assert.ErrMsg(t, err, `invalid syntax, no matcher available. line 1: "no-value"`)
 
 	err = p.Parse("/")
-	assert.ErrMsg(t, err, `invalid contents "/", at line#1`)
+	assert.ErrMsg(t, err, `invalid contents. line 1: "/"`)
 
 	err = p.Parse("=value")
-	assert.ErrMsg(t, err, `key cannot be empty: "=value", at line#1`)
+	assert.ErrMsg(t, err, `key cannot be empty. line 1: "=value"`)
 
 	err = p.Unmarshal(nil, nil)
 	assert.ErrMsg(t, err, `cannot input empty contents to parse`)

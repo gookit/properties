@@ -59,14 +59,3 @@ func parseInlineSlice(s string, ln int) (ss []string, ok bool) {
 	}
 	return
 }
-
-func splitInlineComment(val string) (string, string) {
-	if pos := strings.IndexRune(val, '#'); pos > -1 {
-		return strings.TrimRight(val[0:pos], " "), val[pos:]
-	}
-
-	if pos := strings.Index(val, "//"); pos > -1 {
-		return strings.TrimRight(val[0:pos], " "), val[pos:]
-	}
-	return val, ""
-}
