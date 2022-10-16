@@ -183,8 +183,8 @@ age = 200
 
 ## Marshal/Unmarshal
 
-- `Marshal(v interface{}) ([]byte, error)`
-- `Unmarshal(v []byte, ptr interface{}) error`
+- `Marshal(v any) ([]byte, error)`
+- `Unmarshal(v []byte, ptr any) error`
 
 **Example: Unmarshal**:
 

@@ -183,8 +183,8 @@ age = 200
 
 ## 编码解码
 
-- `Marshal(v interface{}) ([]byte, error)`
-- `Unmarshal(v []byte, ptr interface{}) error`
+- `Marshal(v any) ([]byte, error)`
+- `Unmarshal(v []byte, ptr any) error`
 
 **示例: 解码**:
 

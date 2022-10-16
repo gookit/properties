@@ -347,6 +347,11 @@ func (p *Parser) setValueByItem(ti tokenItem) {
 // ErrNotFound error
 var ErrNotFound = errors.New("this key does not exists")
 
+// Decode the parsed data to struct ptr
+func (p *Parser) Decode(ptr any) error {
+	return p.MapStruct("", ptr)
+}
+
 // MapStruct mapping data to a struct ptr
 func (p *Parser) MapStruct(key string, ptr any) error {
 	var data any

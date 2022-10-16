@@ -72,7 +72,7 @@ expire = 3s
 
 	// tests Unmarshal, BeforeCollect
 	p := properties.NewParser(properties.ParseTime, func(opts *properties.Options) {
-		opts.BeforeCollect = func(name string, val interface{}) interface{} {
+		opts.BeforeCollect = func(name string, val any) interface{} {
 			if name == "name" {
 				return strutil.Upper(val.(string))
 			}
