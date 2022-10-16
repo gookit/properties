@@ -15,6 +15,9 @@ type Encoder struct {
 	buf bytes.Buffer
 	// TagName for encode a struct. default: properties
 	TagName string
+	// comments map data. TODO
+	// key is path name, value is comments
+	// comments map[string]string
 }
 
 // NewEncoder instance.
@@ -53,11 +56,7 @@ func (e *Encoder) encode(v any) error {
 			Result:  &mp,
 		}
 
-		decoder, err := mapstructure.NewDecoder(cfg)
-		if err != nil {
-			return err
-		}
-
+		decoder, _ := mapstructure.NewDecoder(cfg)
 		if err := decoder.Decode(v); err != nil {
 			return err
 		}

@@ -9,6 +9,15 @@ import (
 	"github.com/gookit/properties"
 )
 
+func TestOptions_basic(t *testing.T) {
+	opt := &properties.Options{}
+
+	fn := properties.WithTagName("config")
+	fn(opt)
+
+	assert.Eq(t, "config", opt.TagName)
+}
+
 func TestOptions_InlineComment(t *testing.T) {
 	text := `
 key = value # inline comments
