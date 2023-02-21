@@ -12,7 +12,7 @@ import (
 
 // ValDecodeHookFunc returns a mapstructure.DecodeHookFunc that parse time string
 func ValDecodeHookFunc() mapstructure.DecodeHookFunc {
-	return func(f reflect.Type, t reflect.Type, data any) (interface{}, error) {
+	return func(f reflect.Type, t reflect.Type, data any) (any, error) {
 		if f.Kind() != reflect.String {
 			return data, nil
 		}

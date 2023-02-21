@@ -32,7 +32,7 @@ type Options struct {
 	// MapStructConfig for binding data to struct.
 	MapStructConfig mapstructure.DecoderConfig
 	// BeforeCollect value handle func, you can return a new value.
-	BeforeCollect func(name string, val any) interface{}
+	BeforeCollect func(name string, val any) any
 }
 
 func (opts *Options) makeDecoderConfig() *mapstructure.DecoderConfig {
