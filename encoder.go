@@ -6,8 +6,8 @@ import (
 	"reflect"
 	"strings"
 
+	"github.com/go-viper/mapstructure/v2"
 	"github.com/gookit/goutil/reflects"
-	"github.com/mitchellh/mapstructure"
 )
 
 // Encoder struct

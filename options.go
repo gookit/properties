@@ -1,6 +1,6 @@
 package properties
 
-import "github.com/mitchellh/mapstructure"
+import "github.com/go-viper/mapstructure/v2"
 
 // DefaultTagName for mapping data to struct.
 var DefaultTagName = "properties"

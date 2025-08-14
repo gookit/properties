@@ -6,10 +6,10 @@ import (
 	"io"
 	"strings"
 
+	"github.com/go-viper/mapstructure/v2"
 	"github.com/gookit/goutil/envutil"
 	"github.com/gookit/goutil/maputil"
 	"github.com/gookit/goutil/strutil/textscan"
-	"github.com/mitchellh/mapstructure"
 )
 
 // special chars consts

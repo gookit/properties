@@ -6,8 +6,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/go-viper/mapstructure/v2"
 	"github.com/gookit/goutil/strutil"
-	"github.com/mitchellh/mapstructure"
 )
 
 // ValDecodeHookFunc returns a mapstructure.DecodeHookFunc that parse time string
