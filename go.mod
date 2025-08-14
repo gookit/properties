@@ -3,7 +3,7 @@ module github.com/gookit/properties
 go 1.18
 
 require (
-	github.com/gookit/goutil v0.7.0
+	github.com/gookit/goutil v0.7.1
 	github.com/mitchellh/mapstructure v1.5.0
 )
 
