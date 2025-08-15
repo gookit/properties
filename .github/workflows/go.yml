@@ -54,13 +54,12 @@ jobs:
       # run: go test -v -cover ./...
       # must add " for profile.cov on Windows OS
       run: go test -v -coverprofile="profile.cov" ./...
-
-    - name: Send coverage
-      uses: shogo82148/actions-goveralls@v1
-      if: ${{ matrix.os == 'ubuntu-latest' }}
+    - name: Coveralls Parallel
+      uses: coverallsapp/github-action@v2
       with:
-        path-to-profile: profile.cov
+        file: profile.cov
         flag-name: Go-${{ matrix.go_version }}
+        fail-on-error: false
         parallel: true
 
   # notifies that all test jobs are finished.
@@ -69,6 +68,8 @@ jobs:
     needs: test
     runs-on: ubuntu-latest
     steps:
-      - uses: shogo82148/actions-goveralls@v1
+      - name: Coveralls Finished
+        uses: coverallsapp/github-action@v2
         with:
+          fail-on-error: false
           parallel-finished: true
