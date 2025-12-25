@@ -4,7 +4,7 @@ go 1.18
 
 require (
 	github.com/go-viper/mapstructure/v2 v2.4.0
-	github.com/gookit/goutil v0.7.1
+	github.com/gookit/goutil v0.7.3
 )
 
 require (
