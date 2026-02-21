@@ -31,3 +31,4 @@
 /*.pid
 #go.sum
 go.work
+.xenv.toml
